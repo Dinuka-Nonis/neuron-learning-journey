@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 def create_time_grid(dt, t_total):
     """
@@ -52,3 +53,22 @@ def create_pulse_input(time, start_time, end_time, amplitude):
     #sets values to amplitude only where mask is true
     current[pulse_indices] = amplitude   # set those time to amplitude
     return current
+
+def plot_input_current(time, current, title="Input Current"):
+    """
+    Plot input current over time.
+
+    Args:
+        time (np.ndarray): Time grid
+        current (np.ndarray): Current values
+        title (str): Plot title. Defaults to "Input Current".
+    """
+
+    plt.figure(figsize=(10, 4))
+    plt.plot(time, current, linewidth=2, color='blue')
+    plt.xlabel('Time (ms)', fontsize=12)
+    plt.ylabel('Input Current (arbitrary units)', fontsize=12)
+    plt.title(title, fontsize=14)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show()
