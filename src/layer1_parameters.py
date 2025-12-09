@@ -33,3 +33,19 @@ def print_parameters(params):    # why have this function - we might want to pri
     print(f"Spike threshold (v_threshold): {params['v_threshold']:.1f} mV")
     print(f"Reset potential (v_reset):     {params['v_reset']:.1f} mV")
     print("="*50 + "\n")
+
+def main():
+    """
+    Main function to demonstrate parameter definition.
+    """
+
+    params = get_default_parameters()
+
+    print_parameters(params)
+
+    print ("Individual access examples: ")
+    print(f"The neuron's time constant is {params['tau']}ms")
+    print(f"It will spike when voltage reaches {params['v_threshold']} mV")
+
+if __name__ == "__main__":
+    main()
