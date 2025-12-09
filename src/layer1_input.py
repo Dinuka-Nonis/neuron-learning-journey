@@ -79,7 +79,7 @@ def main():
     """
 
     #create time grid
-    dt = 0.1  # milliseconds
+    dt = 10  # milliseconds
     t_total = 100.0 # milliseconds
     time = create_time_grid(dt, t_total)
 
