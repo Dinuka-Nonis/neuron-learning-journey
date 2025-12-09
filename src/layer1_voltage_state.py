@@ -41,7 +41,7 @@ def get_initial_conditions(params, condition='rest'):
         return params['v_rest']
     elif condition == 'depolarized':  # partially excited, between rest and threshhold
         v_rest = params['v_rest']
-        v_threshold = params['v_threshhold']
+        v_threshold = params['v_threshold']
         return (v_rest + v_threshold)/2  # to get the midpoint
     elif condition == 'hyperpolarized':
         return params['v_reset']
@@ -80,3 +80,37 @@ def plot_voltage_state(time, voltage, params, title="Voltage state"):
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.show()
+
+def main():
+    """
+    Demonstrate differnt initial voltage conditions.
+    """
+    import sys
+    sys.path.append('.')
+    from src.layer1_parameters import get_default_parameters
+    from src.layer1_input import create_time_grid
+
+    params = get_default_parameters()
+    time = create_time_grid(dt = 0.1, t_total=100.0)
+
+    print("="*60)
+    print("INITIAL VOLTAGE CONDITIONS")
+    print("="*60)
+
+    conditions = ['rest', 'depolarized', 'hyperpolarized', 'threshold']
+
+    for condition in conditions:
+        v_initial = get_initial_conditions(params, condition)
+
+        voltage = initialize_voltage_state(time, v_initial)
+
+        print(f"\nCondition: {condition}")
+        print(f"  Initial voltage: {v_initial:.1f} mV")
+        print(f"  Voltage array length: {len(voltage)}")
+        print(f"  First value: {voltage[0]:.1f} mV")
+        print(f"  Remaining values: {voltage[1]} (placeholder)")
+
+        plot_voltage_state(time, voltage, params, title=f"Initial Condition: {condition.capitalize()}")
+
+if __name__ == "__main__":
+    main()
