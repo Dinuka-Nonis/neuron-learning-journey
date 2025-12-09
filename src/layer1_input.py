@@ -13,7 +13,7 @@ def create_time_grid(dt, t_total):
         np.ndarray: Array of time points
     """
 
-    time = np.arrange(0, t_total + dt, dt)
+    time = np.arange(0, t_total + dt, dt)
     return time
 
 def create_constant_inputs(time, amplitude):
@@ -104,5 +104,5 @@ def main():
     current_double = pulse1 + pulse2
     plot_input_current(time, current_double, "Double Pulse Input")
 
-    if __name__ == "__main__":
+if __name__ == "__main__":
         main()
