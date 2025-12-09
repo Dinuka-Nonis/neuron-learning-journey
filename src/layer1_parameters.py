@@ -39,7 +39,7 @@ def main():
     Main function to demonstrate parameter definition.
     """
 
-    params = get_default_parameters()
+    params = get_default_parameters()  # reason to store result - so we can use it multiple times
 
     print_parameters(params)
 
@@ -47,5 +47,5 @@ def main():
     print(f"The neuron's time constant is {params['tau']}ms")
     print(f"It will spike when voltage reaches {params['v_threshold']} mV")
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # this means "Only run main() when this file is executed directly" If we import this file elsewhere, main() wont run automatically
     main()
