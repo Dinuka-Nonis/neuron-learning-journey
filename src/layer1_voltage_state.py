@@ -49,4 +49,34 @@ def get_initial_conditions(params, condition='rest'):
         return params['v_threshold']
     
     else:
+        #stops program if bad input
         raise ValueError(f"Unknown condition: {condition}. Use 'rest', 'depolarized', 'hyperpolarized', or 'threshold'")
+    
+def plot_voltage_state(time, voltage, params, title="Voltage state"):
+    """
+    Plot voltage over time with reference lines
+
+    Args:
+        time (np.ndarray): Time grid
+        voltage (np.ndarray): Volatge values
+        params (dict): Neuron parameters (for reference lines)
+        title (str): Plot title
+    """
+    plt.figure(figsize=(12,6))
+
+    # Add reference lines for key voltages
+    plt.axhline(y=params['v_rest'], color='blue', linestyle='--', 
+                linewidth=1.5, alpha=0.7, label='V_rest')
+    plt.axhline(y=params['v_threshold'], color='red', linestyle='--', 
+                linewidth=1.5, alpha=0.7, label='V_threshold')
+    plt.axhline(y=params['v_reset'], color='green', linestyle='--', 
+                linewidth=1.5, alpha=0.7, label='V_reset')
+    
+    # Labels and formatting
+    plt.xlabel('Time (ms)', fontsize=12)
+    plt.ylabel('Voltage (mV)', fontsize=12)
+    plt.title(title, fontsize=14)
+    plt.legend(loc='best', fontsize=10)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show()
