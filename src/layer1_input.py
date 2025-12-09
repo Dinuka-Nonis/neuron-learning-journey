@@ -72,3 +72,37 @@ def plot_input_current(time, current, title="Input Current"):
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.show()
+
+def main():
+    """
+    Demonstrate differnt input current patterns
+    """
+
+    #create time grid
+    dt = 0.1  # milliseconds
+    t_total = 100.0 # milliseconds
+    time = create_time_grid(dt, t_total)
+
+    print(f"Created time grid: {len(time)} time points")
+    print(f"Time range: {time[0]:.1f} to {time[-1]:.1f} ms")
+    print(f"Time step: {dt} ms\n")
+
+    #Example 1 - Constant input
+    print("Example 1: Constant Input")
+    current_constant = create_constant_inputs(time, amplitude = 0.5)
+    plot_input_current(time, current_constant, "Constant Input current")
+
+    #Example 2 - Pulse input
+    print("Example 2: Pulse Input")
+    current_pulse = create_pulse_input(time, start_time=20.0, end_time=60.0, amplitude=10.0)
+    plot_input_current(time, current_pulse, "Pulse Input Current")
+
+    #Example 3 - Two pulses
+    print("Example 3: Two Pulses")
+    pulse1 = create_pulse_input(time, start_time=10.0, end_time=20.0, amplitude=8.0)
+    pulse2 = create_pulse_input(time, start_time=50.0, end_time=60.0, amplitude=12.0)
+    current_double = pulse1 + pulse2
+    plot_input_current(time, current_double, "Double Pulse Input")
+
+    if __name__ == "__main__":
+        main()
