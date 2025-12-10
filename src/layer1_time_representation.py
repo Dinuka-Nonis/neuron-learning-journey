@@ -1,3 +1,5 @@
+import numpy as np
+
 def validate_time_parameters(dt, t_total):
     """
     Validate time parameters before creating configuration.
@@ -24,4 +26,40 @@ def validate_time_parameters(dt, t_total):
 
     if dt > 1.0:
         print(f"WARNING : Very large time step (dt = {dt}) may miss fast dynamics")
-        
+
+def create_time_configuration(dt, t_total)      :
+    """
+    Create a complete time configuration for simulation.
+
+    This bundles all time-related information into one dictionary
+    for easy passing to other functions
+
+    Args:
+        dt (float): Time step in milliseconds
+        t_total (float): Total simulation time in milliseconds
+
+    Returns:
+        dict: Time configuration containing:
+            - dt: time step
+            - t_total: total time
+            - time: array of time points
+            - n_steps: number of time steps
+    """
+
+    #validate inputs first
+    validate_time_parameters(dt, t_total)
+
+    #create time array
+    time = np.arange(0, t_total + dt, dt)
+
+    #calculate number of steps
+    n_steps = len(time)
+
+    time_config = {
+        'dt':dt,
+        't_total': t_total,
+        'time': time,
+        'n_steps': n_steps
+    }
+
+    return time_config
