@@ -41,3 +41,34 @@ def simulate_single_step_euler(V_current, I_current, params, dt):
     V_next = V_current + delta_V
 
     return V_next
+
+def check_and_handle_spike(V, params):
+    """
+    Check if voltage crossed threshold and handle spike resest.
+
+    when neuron spikes:
+    1. Voltage is reset to v_reset (hyperpolarization)
+    2. We record that a spike occured
+
+    This implements the "Integrate_and_fire" mechanism:
+    - Integrate: voltage accumulates input
+    - Fire: when threshold crossed, spike!
+
+    Args:
+        V (float): Current voltage in mV
+        params (dict): Neuron parameters
+    """
+
+    v_threshold = params['v_threshold']
+    v_reset = params['v_reset']
+
+    #check if voltage crossed threshold
+    if V >= v_threshold:
+        #SPIKE !! reset voltage
+        v_after_spike = v_reset
+        spike_occured = True
+        return v_after_spike, spike_occured
+    else:
+        #no spike, voltage unchanged
+        spike_occured = False
+        return V, spike_occured
