@@ -72,3 +72,30 @@ def check_and_handle_spike(V, params):
         #no spike, voltage unchanged
         spike_occured = False
         return V, spike_occured
+    
+def simulate_single_step_with_spike(V_current, I_current, params, dt):
+    """
+    Simulate one complete time step including spike detection
+
+    This is the complete single step function that combines:
+    1.Voltage dynamics (Euler integration)
+    2. Spike detection and reset
+
+    Order of operations
+    1. Update voltage based on current state
+    2. Check if updated voltage crossed threshold
+    3. Reset if spike occured
+
+    Args:
+        V_current (float): Current in mV
+        I_current (float): Input current at the moment
+        params (dict): Neuron parameters
+        dt (float): TIme step in ms
+    """
+    #step1 : Calculate voltage change (continous dynamics)
+    V_next = simulate_single_step_euler(V_current, I_current, params, dt)
+
+    #step2 : check for spike and handle reset (discrete event)
+    V_next, spike_occurred = check_and_handle_spike(V_next, params)
+
+    return V_next, spike_occurred
