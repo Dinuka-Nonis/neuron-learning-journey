@@ -63,3 +63,21 @@ def create_time_configuration(dt, t_total)      :
     }
 
     return time_config
+
+def print_time_info(time_config):
+    """
+    Print time configuration in a readable format.
+
+    Args:
+        time_config (dict): Time configuration from create_time_configuration()
+    """
+
+    print("\n" + "="*50)
+    print("TIME CONFIGURATION")
+    print("="*50)
+    print(f"Time step (dt):        {time_config['dt']:.4f} ms")
+    print(f"Total duration:        {time_config['t_total']:.2f} ms")
+    print(f"Number of steps:       {time_config['n_steps']}")
+    print(f"Sampling rate:         {1000/time_config['dt']:.1f} Hz")
+    print(f"Time range:            [{time_config['time'][0]:.2f}, {time_config['time'][-1]:.2f}] ms")
+    print("="*50 + "\n")
