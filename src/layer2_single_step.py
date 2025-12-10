@@ -7,7 +7,7 @@ Using Forward Euler method: V_next = V_current + dV/dt * dt
 """
 import numpy as np
 
-def simulate_single_step_euler(V_current, I_current, params, dt):
+def simulate_single_step_euler(V_current, I_current, params, dt, ):
     """
     Simulate one time step using forward euler method.
     This is the core of simulation. everything is build on this!
@@ -99,3 +99,84 @@ def simulate_single_step_with_spike(V_current, I_current, params, dt):
     V_next, spike_occurred = check_and_handle_spike(V_next, params)
 
     return V_next, spike_occurred
+
+def main():
+    """
+    Demonstrate single time step simulation with examples.
+    """
+    import sys
+    sys.path.append('.')
+    from src.layer1_parameters import get_default_parameters
+    
+    params = get_default_parameters()
+    dt = 0.1
+    
+    print("="*60)
+    print("SINGLE TIME STEP EXAMPLES")
+    print("="*60)
+    
+    # Example 1: Sub-threshold (FIXED - will actually change now)
+    print("\nExample 1: Sub-threshold Response")
+    print("-" * 40)
+    V_current = -65.0
+    I_current = 10.0  # Changed from 5.0 to 10.0!
+    
+    print(f"Starting voltage: {V_current:.2f} mV")
+    print(f"Input current: {I_current:.1f}")
+    
+    V_next, spiked = simulate_single_step_with_spike(V_current, I_current, params, dt)
+    
+    print(f"Next voltage: {V_next:.6f} mV")
+    print(f"Spike occurred: {spiked}")
+    print(f"Change: {V_next - V_current:.6f} mV")
+    
+    # Example 2: At rest
+    print("\nExample 2: At Rest (No Input)")
+    print("-" * 40)
+    V_current = params['v_rest']
+    I_current = 0.0
+    
+    print(f"Starting voltage: {V_current:.2f} mV")
+    print(f"Input current: {I_current:.1f}")
+    
+    V_next, spiked = simulate_single_step_with_spike(V_current, I_current, params, dt )
+    
+    print(f"Next voltage: {V_next:.6f} mV")
+    print(f"Spike occurred: {spiked}")
+    print(f"Change: {V_next - V_current:.6f} mV")
+    
+    # Example 3: Supra-threshold (FIXED - will actually spike now)
+    print("\nExample 3: Strong input, near threshold")
+    print("-" * 40)
+    V_current = -55.01  # Changed from -56 to -55.5 (closer to threshold)
+    I_current = 30.0   # Changed from 20 to 30 (much stronger!)
+    
+    print(f"Starting voltage: {V_current:.2f} mV")
+    print(f"Input current: {I_current:.1f}")
+    print(f"Threshold: {params['v_threshold']:.2f} mV")
+    
+    V_next, spiked = simulate_single_step_with_spike(V_current, I_current, params, dt )
+    
+    print(f"Next voltage: {V_next:.6f} mV")
+    print(f"Spike occurred: {spiked} ")
+    if spiked:
+        print(f"Reset to: {params['v_reset']:.2f} mV")
+    
+    # Example 4: Sequence
+    print("\nExample 4: Sequence of 5 Steps")
+    print("-" * 40)
+    V = -70.0
+    I = 10.0
+    
+    print(f"Initial voltage: {V:.2f} mV")
+    print(f"Constant input: {I:.1f}")
+    print("\nStep-by-step evolution:")
+    
+    for step in range(5):
+        V, spiked = simulate_single_step_with_spike(V, I, params, dt ) 
+        spike_marker = " SPIKE!" if spiked else ""
+        print(f"  Step {step+1}: V = {V:.3f} mV {spike_marker}")
+
+
+if __name__ == "__main__":
+    main()
