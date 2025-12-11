@@ -110,3 +110,77 @@ def compute_spike_timing_loss(simulated_spikes, target_spikes, max_delay=10.0):
 
     avg_error = total_error / n_target
     return avg_error
+
+def compute_firing_rate_loss(simulated_spikes, target_spikes, duration):
+    """compute differnece in firing rates
+
+    firing rate  = average spikes per second (Hz)
+
+
+    Args:
+        simulated_spikes (list): simulated spike times
+        target_spikes (list): target spike times
+        duration (float): Simulation duration
+    """
+    rate_sim = (len(simulated_spikes) / duration) *1000
+    rate_target = (len(target_spikes) / duration) *1000
+
+    loss = (rate_sim - rate_target) **2
+    return loss
+
+def compute_combined_loss(simulated_data, target_data, params, weights=None):
+    """
+    Compute weighted combination of multiple loss metrics
+
+    This is the best loss function because it combines multiple aspects
+    - Sub-threshold voltage dynamics (differentiable)
+    - Spike count (overall excitability)
+    - spike timing (temporal precision)
+    - firing rate (average activity)
+
+    Args:
+        simulated_data (dict): simulated neuron data
+        target_data (dict): target neuron data
+        params (dict): neuron parameters
+        weights (dict, optional): weights for each loss component. Defaults to None.
+    """
+    if weights is None:
+        weights = {
+            'voltage':1.0,
+            'spike_count':10.0,
+            'spike_timing':5.0,
+            'firing_rate':2.0
+        }
+
+    #extract data
+    sim_voltage = simulated_data['voltage']
+    target_voltage = target_data['voltage']
+    sim_spikes = simulated_data['spike_times']
+    target_spikes = target_data['spike_times']
+    duration = target_data['time_config']['t_total']
+
+    #compute individual losses
+    voltage_loss = compute_subthreshold_mse(sim_voltage, target_voltage, params)
+    spike_count_loss = compute_spike_count_loss(sim_spikes, target_spikes)
+    spike_timing_loss = compute_spike_timing_loss(sim_spikes, target_spikes)
+    firing_rate_loss = compute_firing_rate_loss(sim_spikes, target_spikes, duration)
+
+    #weight combination
+    total_loss = (
+        weights['voltage']*voltage_loss +
+        weights['spike_count'] * spike_count_loss +
+        weights['spike_timing'] * spike_timing_loss +
+        weights['firing_rate'] * firing_rate_loss
+    )
+
+    result = {
+        'total':total_loss,
+        'components': {
+            'voltage_mse':voltage_loss,
+            'spike_count':spike_count_loss,
+            'spike_timing':spike_timing_loss,
+            'firing_rate':firing_rate_loss
+        },
+        'weights': weights
+    }
+    return result
