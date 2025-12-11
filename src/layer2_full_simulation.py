@@ -51,3 +51,23 @@ def simulate_neuron_euler(params, time_config, current, v_initial):
             spike_times.append(time[i+1])
 
     return voltage, spike_times
+
+def detect_spike_from_voltage(voltage, time, params):
+    """
+    Detect spike by scanning through voltage array
+
+    Args:
+        voltage (np.ndarray): Voltage trace
+        time (np.ndarray): v_reset(just resest)
+        params (dict): Neuron parameters
+    """
+    v_threshold = params['v_threshold']
+    v_reset = params['v_reset']
+
+    spike_times = []
+
+    for i in range (1, len(voltage)):
+        if voltage[i] == v_reset and voltage[i-1]>= v_threshold:
+            spike_times.append(time[i])
+
+    return spike_times
