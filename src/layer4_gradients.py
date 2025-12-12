@@ -235,3 +235,43 @@ def normalize_gradient(gradients):
         normalized_gradients[param_name] = normalized_values[i]
     
     return normalized_gradients
+
+def print_gradient_info(gradient_result):
+    """
+    Print gradient information in readable format.
+    
+    Args:
+        gradient_result (dict): Result from compute_all_gradients_finite_diff()
+    """
+    print("\n" + "="*60)
+    print("GRADIENT INFORMATION")
+    print("="*60)
+    
+    gradients = gradient_result['gradients']
+    loss = gradient_result['loss']
+    
+    print(f"\nCurrent Loss: {loss:.4f}")
+    
+    print("\nGradients (∂loss/∂param):")
+    for param_name, grad_value in gradients.items():
+        direction = "↗ increase" if grad_value > 0 else "↘ decrease"
+        print(f"  ∂loss/∂{param_name:12s} = {grad_value:+10.4f}  ({direction} param to reduce loss)")
+    
+    # Compute magnitude
+    grad_values = np.array(list(gradients.values()))
+    magnitude = np.linalg.norm(grad_values)
+    print(f"\nGradient Magnitude: ||∇loss|| = {magnitude:.4f}")
+    
+    # Show normalized gradient
+    normalized = normalize_gradient(gradients)
+    print("\nNormalized Gradient (direction only):")
+    for param_name, norm_value in normalized.items():
+        print(f"  {param_name:12s}: {norm_value:+.4f}")
+    
+    # Suggest update direction
+    print("\n" + "-"*60)
+    print("To REDUCE loss, update parameters as:")
+    for param_name, grad_value in gradients.items():
+        sign = "-" if grad_value > 0 else "+"
+        print(f"  {param_name:12s} → {sign} (move opposite to gradient)")
+    print("="*60 + "\n")
