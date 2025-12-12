@@ -200,3 +200,38 @@ def verify_gradient_direction(param_name , params , gradient , target_data, curr
     }
     
     return result
+
+def normalize_gradient(gradients):
+    """
+    Normalize gradient vector to unit length.
+    
+    This gives us the DIRECTION of steepest descent without
+    worrying about magnitude.
+    
+    normalized_grad = grad / ||grad||
+    
+    Args:
+        gradients (dict): Dictionary of gradients {param_name: value}
+    
+    Returns:
+        dict: Normalized gradients (unit vector)
+    """
+    # Convert to array
+    grad_values = np.array(list(gradients.values()))
+    
+    # Compute magnitude (L2 norm)
+    magnitude = np.linalg.norm(grad_values)
+    
+    if magnitude < 1e-10:
+        # Gradient is essentially zero - return as is
+        return gradients.copy()
+    
+    # Normalize
+    normalized_values = grad_values / magnitude
+    
+    # Convert back to dictionary
+    normalized_gradients = {}
+    for i, param_name in enumerate(gradients.keys()):
+        normalized_gradients[param_name] = normalized_values[i]
+    
+    return normalized_gradients
