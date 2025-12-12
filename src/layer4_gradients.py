@@ -461,4 +461,226 @@ def plot_loss_landscape_2d(param1_name, param2_name, params, target_data,
 
     print(f"\nCurrent: {param1_name}={val1_current:.2f}, {param2_name}={val2_current:.2f}, Loss={current_loss:.2f}")
     print(f"Optimum: {param1_name}={min_val1:.2f}, {param2_name}={min_val2:.2f}, Loss={min_loss:.2f}")
+
+def main():
+    """
+    Demonstrate gradient computation and visualization.
+    """
+    from src.layer1_parameters import get_default_parameters
     
+    print("="*60)
+    print("LAYER 4: GRADIENT COMPUTATION DEMONSTRATION")
+    print("="*60)
+    
+    # Setup
+    print("\n📊 Setting up simulation...")
+    time_config = create_time_configuration(dt=0.1, t_total=100.0)
+    time = time_config['time']
+    current = create_constant_inputs(time, amplitude=18.0)
+    
+    # Generate target data with "true" parameters
+    print("📊 Generating target data...")
+    target_data = generate_target_data(current, time_config, noise_level=0.0)
+    
+    true_params = target_data['params']
+    print(f"\nTrue (hidden) parameters:")
+    print(f"  tau: {true_params['tau']:.1f} ms")
+    print(f"  v_rest: {true_params['v_rest']:.1f} mV")
+    print(f"  v_threshold: {true_params['v_threshold']:.1f} mV")
+    print(f"  v_reset: {true_params['v_reset']:.1f} mV")
+    
+    # Start with "wrong" parameters (what we're trying to learn)
+    current_params = get_default_parameters()
+    print(f"\nCurrent (initial guess) parameters:")
+    print(f"  tau: {current_params['tau']:.1f} ms")
+    print(f"  v_rest: {current_params['v_rest']:.1f} mV")
+    print(f"  v_threshold: {current_params['v_threshold']:.1f} mV")
+    print(f"  v_reset: {current_params['v_reset']:.1f} mV")
+    
+    # Compute current loss
+    v_initial = current_params['v_rest']
+    voltage_current, spikes_current = simulate_neuron_euler(
+        current_params, time_config, current, v_initial
+    )
+    simulated_current = {
+        'voltage': voltage_current,
+        'spike_times': spikes_current,
+        'time_config': time_config
+    }
+    loss_current = compute_combined_loss(simulated_current, target_data, current_params)
+    print(f"\nCurrent loss: {loss_current['total']:.4f}")
+    
+    # =================================================================
+    # EXAMPLE 1: Compute gradient for ONE parameter
+    # =================================================================
+    print("\n" + "="*60)
+    print("EXAMPLE 1: Gradient for Single Parameter (tau)")
+    print("="*60)
+    
+    print("\nComputing ∂loss/∂tau using finite differences...")
+    tau_gradient_result = compute_gradient_finite_diff(
+        'tau', current_params, target_data, current, time_config, h=0.01
+    )
+    
+    print(f"\nResults:")
+    print(f"  Original tau:     {tau_gradient_result['param_original']:.2f} ms")
+    print(f"  Perturbed tau:    {tau_gradient_result['param_perturbed']:.2f} ms")
+    print(f"  Original loss:    {tau_gradient_result['loss_original']:.4f}")
+    print(f"  Perturbed loss:   {tau_gradient_result['loss_perturbed']:.4f}")
+    print(f"  Loss change:      {tau_gradient_result['loss_perturbed'] - tau_gradient_result['loss_original']:.4f}")
+    print(f"  Gradient (∂loss/∂tau): {tau_gradient_result['gradient']:.4f}")
+    
+    if tau_gradient_result['gradient'] > 0:
+        print(f"\n💡 Interpretation: Gradient is POSITIVE")
+        print(f"   → Increasing tau INCREASES loss")
+        print(f"   → Should DECREASE tau to reduce loss")
+    else:
+        print(f"\n💡 Interpretation: Gradient is NEGATIVE")
+        print(f"   → Increasing tau DECREASES loss")
+        print(f"   → Should INCREASE tau to reduce loss")
+    
+    # =================================================================
+    # EXAMPLE 2: Compute gradients for ALL parameters
+    # =================================================================
+    print("\n" + "="*60)
+    print("EXAMPLE 2: Gradients for All Parameters")
+    print("="*60)
+    
+    all_gradients = compute_all_gradients_finite_diff(
+        current_params, target_data, current, time_config, h=0.01
+    )
+    
+    print_gradient_info(all_gradients)
+    
+    # =================================================================
+    # EXAMPLE 3: Verify gradient direction
+    # =================================================================
+    print("\n" + "="*60)
+    print("EXAMPLE 3: Verify Gradient Directions")
+    print("="*60)
+    
+    print("\nVerifying that gradients point in correct direction...")
+    print("(Taking large steps to see clear trends)\n")
+    
+    for param_name, gradient in all_gradients['gradients'].items():
+        verification = verify_gradient_direction(
+            param_name, current_params, gradient, 
+            target_data, current, time_config, step_size=0.5
+        )
+        
+        print(f"{param_name:12s}: gradient = {gradient:+8.2f}")
+        print(f"  Loss original: {verification['loss_original']:.2f}")
+        print(f"  Loss (+step):  {verification['loss_plus']:.2f}")
+        print(f"  Loss (-step):  {verification['loss_minus']:.2f}")
+        print(f"  Verification:  {'✓ CORRECT' if verification['correct'] else '✗ WRONG'}")
+        print()
+    
+    # =================================================================
+    # EXAMPLE 4: Visualize 1D loss landscape
+    # =================================================================
+    print("\n" + "="*60)
+    print("EXAMPLE 4: 1D Loss Landscape Visualization")
+    print("="*60)
+    
+    print("\nPlotting loss vs tau...")
+    plot_loss_landscape_1d(
+        'tau', current_params, target_data, current, time_config, 
+        param_range=(15, 30), n_points=20
+    )
+    
+    print("\nPlotting loss vs v_threshold...")
+    plot_loss_landscape_1d(
+        'v_threshold', current_params, target_data, current, time_config,
+        param_range=(-60, -50), n_points=20
+    )
+    
+    # =================================================================
+    # EXAMPLE 5: Visualize 2D loss landscape
+    # =================================================================
+    print("\n" + "="*60)
+    print("EXAMPLE 5: 2D Loss Landscape Visualization")
+    print("="*60)
+    
+    print("\nPlotting 2D landscape: tau vs v_threshold")
+    print("(This will take a minute...)")
+    
+    plot_loss_landscape_2d(
+        'tau', 'v_threshold', current_params, target_data, 
+        current, time_config, n_points=12
+    )
+    
+    # =================================================================
+    # EXAMPLE 6: Preview gradient descent step
+    # =================================================================
+    print("\n" + "="*60)
+    print("EXAMPLE 6: Preview One Gradient Descent Step")
+    print("="*60)
+    
+    print("\nWhat if we take ONE step using these gradients?")
+    
+    learning_rate = 0.5  # Moderate learning rate
+    print(f"Learning rate: {learning_rate}")
+    
+    # Compute updated parameters
+    updated_params = current_params.copy()
+    print("\nParameter updates:")
+    for param_name, gradient in all_gradients['gradients'].items():
+        old_value = current_params[param_name]
+        new_value = old_value - learning_rate * gradient
+        updated_params[param_name] = new_value
+        
+        change = new_value - old_value
+        print(f"  {param_name:12s}: {old_value:7.2f} → {new_value:7.2f}  (Δ = {change:+7.2f})")
+    
+    # Compute new loss
+    voltage_updated, spikes_updated = simulate_neuron_euler(
+        updated_params, time_config, current, v_initial
+    )
+    simulated_updated = {
+        'voltage': voltage_updated,
+        'spike_times': spikes_updated,
+        'time_config': time_config
+    }
+    loss_updated = compute_combined_loss(simulated_updated, target_data, updated_params)
+    
+    print(f"\nLoss comparison:")
+    print(f"  Before: {all_gradients['loss']:.4f}")
+    print(f"  After:  {loss_updated['total']:.4f}")
+    print(f"  Change: {loss_updated['total'] - all_gradients['loss']:.4f}")
+    
+    if loss_updated['total'] < all_gradients['loss']:
+        print(f"\n✅ SUCCESS! Loss decreased by gradient descent step!")
+        print(f"   This is what Layer 5 will do repeatedly!")
+    else:
+        print(f"\n⚠️  Loss increased - might need smaller learning rate")
+    
+    # Compare to true parameters
+    print(f"\n" + "="*60)
+    print("COMPARISON TO TRUE PARAMETERS")
+    print("="*60)
+    print(f"\n{'Parameter':<15} {'True':>10} {'Current':>10} {'After Step':>12} {'Error Before':>12} {'Error After':>12}")
+    print("-"*75)
+    for param_name in ['tau', 'v_rest', 'v_threshold', 'v_reset']:
+        true_val = true_params[param_name]
+        current_val = current_params[param_name]
+        updated_val = updated_params[param_name]
+        error_before = abs(current_val - true_val)
+        error_after = abs(updated_val - true_val)
+        
+        print(f"{param_name:<15} {true_val:10.2f} {current_val:10.2f} {updated_val:12.2f} {error_before:12.2f} {error_after:12.2f}")
+    
+    print("\n" + "="*60)
+    print("✅ LAYER 4 COMPLETE!")
+    print("="*60)
+    print("\nKey Takeaways:")
+    print("1. Gradients tell us which direction to move parameters")
+    print("2. Negative gradient → increase parameter to reduce loss")
+    print("3. Positive gradient → decrease parameter to reduce loss")
+    print("4. Gradient magnitude → how much the parameter matters")
+    print("5. Loss landscapes show the optimization terrain")
+    print("6. One gradient step moves us toward the optimum")
+    print("\nNext: Layer 5 will repeat this process until convergence!")
+
+
+if __name__ == "__main__":
+    main()
