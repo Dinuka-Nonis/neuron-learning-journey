@@ -74,3 +74,48 @@ def compute_gradient_finite_diff(param_name, params, target_data, current, time_
         'param_perturbed':original_value+h
     }
     return result
+
+def compute_all_gradients_finite_diff(params, target_data, current,time_config, h=0.01, params_to_optimize =None):
+    """
+    compute gradients for all parameters
+    this calls compute_gradient_finite_diff() for each parameter
+
+    Args:
+        params (dict): current parameter values
+        target_data (dicct): target data to match
+        current (np.ndarray): input current
+        time_config (dict): time configuration
+        h (float, optional): step size for finite differences. Defaults to 0.01.
+        params_to_optimize (list, optional): which parameters tocompute gradients for. Defaults to None.
+    """
+    #default : optimize all parameters
+    if params_to_optimize is None:
+        params_to_optimize = ['tau', 'v_rest', 'v_threshold', 'v_reset']
+
+    #storage
+    gradients = {}
+    details = {}
+
+    #compute gradient for each parameter
+    print("\nComputing gradients...")
+    for param_name in params_to_optimize:
+        print(f" Computing ∂loss/∂{param_name}...", end=' ')
+
+        result = compute_gradient_finite_diff(
+            param_name, params, target_data, current, time_config, h
+        )
+
+        gradients[param_name] = result['gradient']
+        details[param_name] = result
+
+        print(f"✓ gradient = {result['gradient']:.4f}")
+
+    loss_original = details[params_to_optimize[0]]['loss_original']
+
+    result = {
+        'gradients':gradients,
+        'loss':loss_original,
+        'details':details
+    }
+
+    return result
