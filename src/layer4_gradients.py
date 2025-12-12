@@ -275,3 +275,190 @@ def print_gradient_info(gradient_result):
         sign = "-" if grad_value > 0 else "+"
         print(f"  {param_name:12s} → {sign} (move opposite to gradient)")
     print("="*60 + "\n")
+
+def plot_loss_landscape_1d(param_name, params, target_data, current, 
+                           time_config, param_range=None, n_points=20):
+    """
+    Plot loss landscape for ONE parameter.
+    
+    This shows how loss changes as we vary a single parameter,
+    keeping all others fixed.
+    
+    Args:
+        param_name (str): Parameter to vary
+        params (dict): Current parameters
+        target_data (dict): Target data
+        current (np.ndarray): Input current
+        time_config (dict): Time configuration
+        param_range (tuple): (min, max) values to plot. If None, uses ±20% of current
+        n_points (int): Number of points to evaluate
+    """
+    # Determine range
+    current_value = params[param_name]
+    if param_range is None:
+        # Default: ±20% of current value
+        param_min = current_value * 0.8
+        param_max = current_value * 1.2
+    else:
+        param_min, param_max = param_range
+    
+    # Sample parameter values
+    param_values = np.linspace(param_min, param_max, n_points)
+    losses = []
+    
+    print(f"\nEvaluating loss landscape for {param_name}...")
+    
+    # Compute loss for each value
+    v_initial = params['v_rest']
+    for val in param_values:
+        # Create modified parameters
+        params_modified = params.copy()
+        params_modified[param_name] = val
+        
+        # Simulate
+        voltage, spikes = simulate_neuron_euler(
+            params_modified, time_config, current, v_initial
+        )
+        
+        # Compute loss
+        simulated = {
+            'voltage': voltage,
+            'spike_times': spikes,
+            'time_config': time_config
+        }
+        loss_result = compute_combined_loss(simulated, target_data, params_modified)
+        losses.append(loss_result['total'])
+    
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(param_values, losses, 'b-', linewidth=2, label='Loss landscape')
+    
+    # Mark current value
+    current_loss = losses[np.argmin(np.abs(param_values - current_value))]
+    plt.plot(current_value, current_loss, 'ro', markersize=12, 
+             label=f'Current: {param_name}={current_value:.2f}')
+    
+    # Mark minimum
+    min_idx = np.argmin(losses)
+    min_param = param_values[min_idx]
+    min_loss = losses[min_idx]
+    plt.plot(min_param, min_loss, 'g*', markersize=15, 
+             label=f'Minimum: {param_name}={min_param:.2f}')
+    
+    plt.xlabel(f'{param_name}', fontsize=12)
+    plt.ylabel('Loss', fontsize=12)
+    plt.title(f'Loss Landscape: {param_name}', fontsize=14)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+    
+    print(f"Current {param_name}: {current_value:.2f}, Loss: {current_loss:.2f}")
+    print(f"Optimal {param_name}: {min_param:.2f}, Loss: {min_loss:.2f}")
+
+def plot_loss_landscape_2d(param1_name, param2_name, params, target_data, 
+                           current, time_config, n_points=15):
+    """
+    Plot 2D loss landscape (varying two parameters).
+    
+    Creates both a 3D surface plot and a 2D contour plot.
+    
+    Args:
+        param1_name (str): First parameter to vary
+        param2_name (str): Second parameter to vary
+        params (dict): Current parameters
+        target_data (dict): Target data
+        current (np.ndarray): Input current
+        time_config (dict): Time configuration
+        n_points (int): Number of points per dimension (total = n_points²)
+    """
+    # Parameter ranges (±20% of current)
+    val1_current = params[param1_name]
+    val2_current = params[param2_name]
+    
+    val1_range = np.linspace(val1_current * 0.8, val1_current * 1.2, n_points)
+    val2_range = np.linspace(val2_current * 0.8, val2_current * 1.2, n_points)
+    
+    # Create grid
+    val1_grid, val2_grid = np.meshgrid(val1_range, val2_range)
+    loss_grid = np.zeros_like(val1_grid)
+    
+    print(f"\nEvaluating 2D loss landscape ({n_points}x{n_points} = {n_points**2} points)...")
+    print("This may take a moment...")
+    
+    # Compute loss for each grid point
+    v_initial = params['v_rest']
+    total_points = n_points * n_points
+    for i in range(n_points):
+        for j in range(n_points):
+            # Progress indicator
+            current_point = i * n_points + j + 1
+            if current_point % 25 == 0:
+                print(f"  Progress: {current_point}/{total_points} points...")
+            
+            # Modified parameters
+            params_modified = params.copy()
+            params_modified[param1_name] = val1_grid[i, j]
+            params_modified[param2_name] = val2_grid[i, j]
+            
+            # Simulate and compute loss
+            voltage, spikes = simulate_neuron_euler(
+                params_modified, time_config, current, v_initial
+            )
+            simulated = {
+                'voltage': voltage,
+                'spike_times': spikes,
+                'time_config': time_config
+            }
+            loss_result = compute_combined_loss(simulated, target_data, params_modified)
+            loss_grid[i, j] = loss_result['total']
+    
+    # Find minimum
+    min_idx = np.unravel_index(np.argmin(loss_grid), loss_grid.shape)
+    min_val1 = val1_grid[min_idx]
+    min_val2 = val2_grid[min_idx]
+    min_loss = loss_grid[min_idx]
+    
+    # Create figure with two subplots
+    fig = plt.figure(figsize=(16, 6))
+    
+    # Subplot 1: 3D surface
+    ax1 = fig.add_subplot(121, projection='3d')
+    surf = ax1.plot_surface(val1_grid, val2_grid, loss_grid, cmap='viridis', alpha=0.8)
+    
+    # Mark current and optimal points
+    current_loss_idx = np.argmin(np.abs(val1_range - val1_current))
+    current_loss_jdx = np.argmin(np.abs(val2_range - val2_current))
+    current_loss = loss_grid[current_loss_jdx, current_loss_idx]
+    
+    ax1.scatter([val1_current], [val2_current], [current_loss], 
+               color='red', s=100, label='Current')
+    ax1.scatter([min_val1], [min_val2], [min_loss], 
+               color='green', s=150, marker='*', label='Optimum')
+    ax1.set_xlabel(param1_name, fontsize=11)
+    ax1.set_ylabel(param2_name, fontsize=11)
+    ax1.set_zlabel('Loss', fontsize=11)
+    ax1.set_title('3D Loss Landscape', fontsize=13)
+    ax1.legend()
+    fig.colorbar(surf, ax=ax1, shrink=0.5)
+
+    # Subplot 2: Contour plot
+    ax2 = fig.add_subplot(122)
+    contour = ax2.contour(val1_grid, val2_grid, loss_grid, levels=15, cmap='viridis')
+    ax2.clabel(contour, inline=True, fontsize=8)
+
+    ax2.plot(val1_current, val2_current, 'ro', markersize=10, label='Current')
+    ax2.plot(min_val1, min_val2, 'g*', markersize=15, label='Optimum')
+
+    ax2.set_xlabel(param1_name, fontsize=12)
+    ax2.set_ylabel(param2_name, fontsize=12)
+    ax2.set_title('Contour Plot (Loss Levels)', fontsize=13)
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.show()
+
+    print(f"\nCurrent: {param1_name}={val1_current:.2f}, {param2_name}={val2_current:.2f}, Loss={current_loss:.2f}")
+    print(f"Optimum: {param1_name}={min_val1:.2f}, {param2_name}={min_val2:.2f}, Loss={min_loss:.2f}")
+    
