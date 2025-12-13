@@ -66,7 +66,7 @@ def gradient_descent(initial_params, target_data, current, time_config,
         )
         simulated = {
             'voltage': voltage,
-            'apike_times': spikes,
+            'spike_times': spikes,
             'time_config': time_config
         }
     
@@ -292,29 +292,29 @@ def plot_parameter_evolution(history, true_params=None, title="Parameter Evoluti
 
 def compare_learned_vs_target(learned_params, target_data, current, time_config):
     """
-    Compare learned parameters against target by simulating both
-
+    Compare learned parameters against target by simulating both.
+    
     Args:
-        learned_params (dict): learned paramters
-        target_data (dict): target data
-        current (np.ndarray): input current
-        time_config (dict): time configuration
+        learned_params (dict): Learned parameters
+        target_data (dict): Target data
+        current (np.ndarray): Input current
+        time_config (dict): Time configuration
     """
-
+    # Simulate with learned parameters
     v_initial = learned_params['v_rest']
-    voltage_learned , spikes_learned = simulate_neuron_euler(
+    voltage_learned, spikes_learned = simulate_neuron_euler(
         learned_params, time_config, current, v_initial
     )
-
+    
     # Extract target data
     voltage_target = target_data['voltage']
     spikes_target = target_data['spike_times']
     time = target_data['time']
-
-    #plot comparison
-    fig, (ax1, ax2) = plt.subplots(2,1, figsize=(12,8), sharex=True)
-
-    #voltage comparison
+    
+    # Plot comparison
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+    
+    # Voltage comparison
     ax1.plot(time, voltage_target, 'r-', linewidth=2, alpha=0.7, label='Target')
     ax1.plot(time, voltage_learned, 'b--', linewidth=2, alpha=0.7, label='Learned')
     
@@ -358,3 +358,131 @@ def compare_learned_vs_target(learned_params, target_data, current, time_config)
         learned_val = learned_params[param_name]
         error = abs(learned_val - true_val)
         print(f"{param_name:<15} {true_val:10.2f} {learned_val:10.2f} {error:10.4f}")
+
+
+def main():
+    """
+    Complete learning demonstration - the grand finale!
+    """
+    print("="*60)
+    print("COMPLETE LEARNING DEMONSTRATION ")
+    print("="*60)
+    print("\nThis brings together ALL previous layers:")
+    print("  Layer 1: Parameters, input, voltage, time")
+    print("  Layer 2: Forward simulation")
+    print("  Layer 3: Loss functions")
+    print("  Layer 4: Gradient computation")
+    print("  Layer 5: Learning loop")
+    
+    # Setup
+    print("\nSetup...")
+    time_config = create_time_configuration(dt=0.1, t_total=100.0)
+    time = time_config['time']
+    current = create_constant_inputs(time, amplitude=18.0)
+    
+    # Generate target
+    print("Generating target data...")
+    target_data = generate_target_data(current, time_config, noise_level=0.0)
+    
+    true_params = target_data['params']
+    print(f"\nTrue (hidden) parameters to recover:")
+    for param_name in ['tau', 'v_rest', 'v_threshold', 'v_reset']:
+        print(f"  {param_name:12s} = {true_params[param_name]:.2f}")
+    
+    # Starting point
+    initial_params = get_default_parameters()
+    print(f"\nStarting parameters (initial guess):")
+    for param_name in ['tau', 'v_rest', 'v_threshold', 'v_reset']:
+        print(f"  {param_name:12s} = {initial_params[param_name]:.2f}")
+    
+    # LEARNING!
+    print("\n" + "="*60)
+    print("Starting Learning...")
+    print("="*60)
+    
+    result = gradient_descent(
+        initial_params, target_data, current, time_config,
+        learning_rate=0.5,
+        max_iterations=50,
+        tolerance=0.01,
+        params_to_optimize=['tau', 'v_threshold'],  # Learn just these two
+        verbose=True
+    )
+    
+    # Results
+    learned_params = result['final_params']
+    
+    print("\n" + "="*60)
+    print("VISUALIZING RESULTS")
+    print("="*60)
+    
+    # Plot 1: Learning curve
+    print("\n1. Loss over time (learning curve)...")
+    plot_learning_curve(result['history'], "Loss During Learning")
+    
+    # Plot 2: Parameter evolution
+    print("\n2. Parameter convergence...")
+    plot_parameter_evolution(result['history'], true_params, "Parameter Evolution")
+    
+    # Plot 3: Final comparison
+    print("\n3. Learned vs Target...")
+    compare_learned_vs_target(learned_params, target_data, current, time_config)
+    
+    # Try with momentum
+    print("\n" + "="*60)
+    print("Now trying with MOMENTUM for comparison...")
+    print("="*60)
+    
+    result_momentum = gradient_descent_with_momentum(
+        initial_params, target_data, current, time_config,
+        learning_rate=0.5,
+        momentum=0.9,
+        max_iterations=50,
+        tolerance=0.01,
+        params_to_optimize=['tau', 'v_threshold'],
+        verbose=True
+    )
+    
+    # Compare both methods
+    print("\n" + "="*60)
+    print("COMPARISON: Regular vs Momentum")
+    print("="*60)
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    
+    ax1.plot(result['history']['loss'], 'b-', linewidth=2, label='Regular GD')
+    ax1.plot(result_momentum['history']['loss'], 'r-', linewidth=2, label='With Momentum')
+    ax1.set_xlabel('Iteration')
+    ax1.set_ylabel('Loss')
+    ax1.set_title('Learning Curves Comparison')
+    ax1.set_yscale('log')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+    
+    ax2.text(0.5, 0.8, f"Regular GD:", ha='center', fontsize=12, weight='bold', transform=ax2.transAxes)
+    ax2.text(0.5, 0.7, f"Final loss: {result['final_loss']:.6f}", ha='center', fontsize=10, transform=ax2.transAxes)
+    ax2.text(0.5, 0.6, f"Iterations: {result['iterations']}", ha='center', fontsize=10, transform=ax2.transAxes)
+    
+    ax2.text(0.5, 0.4, f"With Momentum:", ha='center', fontsize=12, weight='bold', transform=ax2.transAxes)
+    ax2.text(0.5, 0.3, f"Final loss: {result_momentum['final_loss']:.6f}", ha='center', fontsize=10, transform=ax2.transAxes)
+    ax2.text(0.5, 0.2, f"Iterations: {result_momentum['iterations']}", ha='center', fontsize=10, transform=ax2.transAxes)
+    
+    ax2.axis('off')
+    
+    plt.tight_layout()
+    plt.show()
+    
+    print("\n" + "="*60)
+    print("PROJECT COMPLETE!")
+    print("="*60)
+    print("\nWhat we achieved:")
+    print("   • Built a differentiable neuron simulator")
+    print("   • Defined loss functions to measure error")
+    print("   • Computed gradients numerically")
+    print("   • Implemented gradient descent learning")
+    print("   • Successfully recovered hidden parameters!")
+    print("\nThis is the essence of differentiable programming:")
+    print("   Build differentiable systems → compute gradients → learn!")
+
+if __name__ == "__main__":
+    main()

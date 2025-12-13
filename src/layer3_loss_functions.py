@@ -103,7 +103,7 @@ def compute_spike_timing_loss(simulated_spikes, target_spikes, max_delay=10.0):
         time_diffs = np.abs(sim_array - target_time)
         min_diff = np.min(time_diffs)
 
-        if min <= max_delay:
+        if min_diff <= max_delay:
             total_error+=min_diff**2
         else:
             total_error+=max_delay**2
