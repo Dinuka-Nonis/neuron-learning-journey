@@ -126,3 +126,110 @@ def gradient_descent(initial_params, target_data, current, time_config,
         'final_loss': loss
     }
     return result
+
+def gradient_descent_with_momentum(initial_params, target_data, current, time_config,
+                                   learning_rate=0.1, momentum = 0.9 , max_iterations = 100, 
+                                   tolerance = 0.01, params_to_optimize=None, verbose = True):
+    """
+    Gradient descent with momentum ( accelerated optimization)
+
+    momemntum helps by:
+    -smoothing out oscillations
+    -accelerating in  consistent directions
+    -escaping shallow local minima
+
+    update rule: 
+        velocity = momentum * velocity - learning_rate* gradient
+        params = params + velocity  
+
+    Args:
+        same as gradient_descent, plus:
+        momentum (float): Momemntum coefficent (0-1, default: 0.9)
+    """
+
+    params = initial_params.copy()
+    if params_to_optimize is None:
+        params_to_optimize = ['tau', 'v_rest', 'v_threshold', 'v_reset']
+    
+    # Initialize velocity (momentum term)
+    velocity = {name: 0.0 for name in params_to_optimize}
+    
+    history = {
+        'loss': [],
+        'params': {name: [] for name in params_to_optimize}
+    }
+    
+    if verbose:
+        print("\n" + "="*60)
+        print("GRADIENT DESCENT WITH MOMENTUM")
+        print("="*60)
+        print(f"\nSettings:")
+        print(f"  Learning rate: {learning_rate}")
+        print(f"  Momentum: {momentum}")
+        print(f"  Max iterations: {max_iterations}")
+        print("\nStarting optimization...\n")
+    
+    for iteration in range(max_iterations):
+        # Simulate
+        v_initial = params['v_rest']
+        voltage, spikes = simulate_neuron_euler(
+            params, time_config, current, v_initial
+        )
+        
+        simulated = {
+            'voltage': voltage,
+            'spike_times': spikes,
+            'time_config': time_config
+        }
+        
+        # Loss
+        loss_result = compute_combined_loss(simulated, target_data, params)
+        loss = loss_result['total']
+        
+        # Record
+        history['loss'].append(loss)
+        for param_name in params_to_optimize:
+            history['params'][param_name].append(params[param_name])
+        
+        # Progress
+        if verbose and (iteration % 10 == 0 or iteration == max_iterations - 1):
+            print(f"Iteration {iteration:3d}: Loss = {loss:.6f}")
+        
+        # Check convergence
+        if loss < tolerance:
+            if verbose:
+                print(f"\n✅ Converged at iteration {iteration}")
+            break
+        
+        # Gradients
+        gradient_result = compute_all_gradients_finite_diff(
+            params, target_data, current, time_config,
+            h=0.01, params_to_optimize=params_to_optimize
+        )
+        gradients = gradient_result['gradients']
+        
+        # Update with momentum
+        for param_name in params_to_optimize:
+            # Update velocity (momentum + gradient)
+            velocity[param_name] = (momentum * velocity[param_name] - 
+                                   learning_rate * gradients[param_name])
+            
+            # Update parameter
+            params[param_name] += velocity[param_name]
+    
+    converged = loss < tolerance
+    
+    if verbose:
+        print("\n" + "="*60)
+        print(f"Final loss: {loss:.6f} after {iteration + 1} iterations")
+        print("="*60)
+    
+    result = {
+        'final_params': params,
+        'history': history,
+        'converged': converged,
+        'iterations': iteration + 1,
+        'final_loss': loss
+    }
+    
+    return result
