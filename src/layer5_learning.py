@@ -289,3 +289,72 @@ def plot_parameter_evolution(history, true_params=None, title="Parameter Evoluti
     fig.suptitle(title, fontsize=14)
     plt.tight_layout()
     plt.show()
+
+def compare_learned_vs_target(learned_params, target_data, current, time_config):
+    """
+    Compare learned parameters against target by simulating both
+
+    Args:
+        learned_params (dict): learned paramters
+        target_data (dict): target data
+        current (np.ndarray): input current
+        time_config (dict): time configuration
+    """
+
+    v_initial = learned_params['v_rest']
+    voltage_learned , spikes_learned = simulate_neuron_euler(
+        learned_params, time_config, current, v_initial
+    )
+
+    # Extract target data
+    voltage_target = target_data['voltage']
+    spikes_target = target_data['spike_times']
+    time = target_data['time']
+
+    #plot comparison
+    fig, (ax1, ax2) = plt.subplots(2,1, figsize=(12,8), sharex=True)
+
+    #voltage comparison
+    ax1.plot(time, voltage_target, 'r-', linewidth=2, alpha=0.7, label='Target')
+    ax1.plot(time, voltage_learned, 'b--', linewidth=2, alpha=0.7, label='Learned')
+    
+    for spike_time in spikes_target:
+        ax1.axvline(x=spike_time, color='red', linestyle=':', alpha=0.3)
+    for spike_time in spikes_learned:
+        ax1.axvline(x=spike_time, color='blue', linestyle=':', alpha=0.3)
+    
+    ax1.set_ylabel('Voltage (mV)', fontsize=12)
+    ax1.set_title('Learned vs Target Voltage', fontsize=14)
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+    
+    # Input current
+    ax2.plot(time, current, 'orange', linewidth=2)
+    ax2.fill_between(time, 0, current, alpha=0.3, color='orange')
+    ax2.set_xlabel('Time (ms)', fontsize=12)
+    ax2.set_ylabel('Input Current', fontsize=12)
+    ax2.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.show()
+    
+    # Print statistics
+    print("\n" + "="*60)
+    print("LEARNED VS TARGET COMPARISON")
+    print("="*60)
+    print(f"\nSpikes:")
+    print(f"  Target:  {len(spikes_target)} spikes")
+    print(f"  Learned: {len(spikes_learned)} spikes")
+    print(f"  Match:   {len(spikes_target) == len(spikes_learned)}")
+    
+    print(f"\nVoltage MSE: {np.mean((voltage_learned - voltage_target)**2):.6f} mV²")
+    
+    print(f"\nParameters:")
+    true_params = target_data['params']
+    print(f"{'Parameter':<15} {'True':>10} {'Learned':>10} {'Error':>10}")
+    print("-"*50)
+    for param_name in ['tau', 'v_rest', 'v_threshold', 'v_reset']:
+        true_val = true_params[param_name]
+        learned_val = learned_params[param_name]
+        error = abs(learned_val - true_val)
+        print(f"{param_name:<15} {true_val:10.2f} {learned_val:10.2f} {error:10.4f}")
