@@ -233,3 +233,21 @@ def gradient_descent_with_momentum(initial_params, target_data, current, time_co
     }
     
     return result
+
+def plot_learning_curve(history, title="Learning Curve"):
+    """
+    Plot loss over iterations.
+    
+    Args:
+        history (dict): History from gradient_descent()
+        title (str): Plot title
+    """
+    plt.figure(figsize=(10, 6))
+    plt.plot(history['loss'], 'b-', linewidth=2)
+    plt.xlabel('Iteration', fontsize=12)
+    plt.ylabel('Loss', fontsize=12)
+    plt.title(title, fontsize=14)
+    plt.grid(True, alpha=0.3)
+    plt.yscale('log')  # Log scale to see exponential decay
+    plt.tight_layout()
+    plt.show()
