@@ -251,3 +251,41 @@ def plot_learning_curve(history, title="Learning Curve"):
     plt.yscale('log')  # Log scale to see exponential decay
     plt.tight_layout()
     plt.show()
+
+def plot_parameter_evolution(history, true_params=None, title="Parameter Evolution"):
+    """
+    Plot how parameters change over iterations
+
+    Args:
+        history (dict): history from gradient_descent()
+        tru_params (dict, optional): True parameters values. Defaults to None.
+        title (str, optional): Plot title. Defaults to "Parameter Evolution".
+    """
+
+    params_optimized = list(history['params'].keys())
+    n_params = len(params_optimized)
+    
+    fig, axes = plt.subplots(n_params, 1, figsize=(10, 3*n_params), sharex=True)
+    
+    if n_params == 1:
+        axes = [axes]
+    
+    for i, param_name in enumerate(params_optimized):
+        ax = axes[i]
+        values = history['params'][param_name]
+        
+        ax.plot(values, 'b-', linewidth=2, label='Learned')
+        
+        if true_params is not None:
+            true_val = true_params[param_name]
+            ax.axhline(y=true_val, color='red', linestyle='--', 
+                      linewidth=2, label='True value')
+        
+        ax.set_ylabel(param_name, fontsize=11)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+    
+    axes[-1].set_xlabel('Iteration', fontsize=12)
+    fig.suptitle(title, fontsize=14)
+    plt.tight_layout()
+    plt.show()
