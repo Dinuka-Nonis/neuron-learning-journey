@@ -37,16 +37,22 @@ def get_optimal_step_size(param_name, param_value):
 
 def compute_gradient_finite_diff(param_name, params, target_data, current, time_config, h=None):
     """
-    Compute gradient of loss w.r.t. ONE parameter using finite differences
-    
-    FIXED VERSION - Proper numerical differentiation
+    Compute gradient of loss w.r.t. ONE parameter using finite differences.
+        
+    Args:
+        param_name (str): Name of parameter to compute gradient for
+        params (dict): Current parameters
+        target_data (dict): Target data to match
+        current (np.ndarray): Input current
+        time_config (dict): Time configuration
+        h (float, optional): Step size. If None, automatically determined.
+        
+    Returns:
+        dict: Gradient information including gradient value and diagnostics
     """
     
-    # Auto-determine step size if not provided (5% of parameter value)
     if h is None:
-        h = abs(params[param_name]) * 0.05
-        if h < 1e-6:  # Prevent tiny steps
-            h = 0.1
+        h = get_optimal_step_size(param_name, params[param_name])
     
     print(f"\n  Computing ∂loss/∂{param_name}... (h={h:.4f})", end='')
     
@@ -62,7 +68,7 @@ def compute_gradient_finite_diff(param_name, params, target_data, current, time_
     }
     
     loss_result_original = compute_combined_loss(
-        simulated_original, target_data, params  # FIXED: pass original params
+        simulated_original, target_data, params
     )
     loss_original = loss_result_original['total']
     
@@ -83,11 +89,11 @@ def compute_gradient_finite_diff(param_name, params, target_data, current, time_
     }
     
     loss_result_perturbed_plus = compute_combined_loss(
-    simulated_perturbed_plus, target_data, params_perturbed_plus  # ← Use perturbed!
+        simulated_perturbed_plus, target_data, params_perturbed_plus  # ← FIXED!
     )
     loss_perturbed_plus = loss_result_perturbed_plus['total']
     
-    # Step 4: Perturb parameter DOWNWARD by h (for better accuracy)
+    # Step 4: Perturb parameter DOWNWARD by h (for central difference)
     params_perturbed_minus = params.copy()
     params_perturbed_minus[param_name] = original_value - h
     
@@ -102,7 +108,7 @@ def compute_gradient_finite_diff(param_name, params, target_data, current, time_
     }
     
     loss_result_perturbed_minus = compute_combined_loss(
-    simulated_perturbed_minus, target_data, params_perturbed_minus  # ← Use perturbed!
+        simulated_perturbed_minus, target_data, params_perturbed_minus  # ← FIXED!
     )
     loss_perturbed_minus = loss_result_perturbed_minus['total']
     
@@ -110,7 +116,6 @@ def compute_gradient_finite_diff(param_name, params, target_data, current, time_
     # gradient ≈ (f(x+h) - f(x-h)) / (2h)
     gradient = (loss_perturbed_plus - loss_perturbed_minus) / (2 * h)
     
-    # Sanity check
     loss_change_plus = loss_perturbed_plus - loss_original
     loss_change_minus = loss_perturbed_minus - loss_original
     
@@ -127,15 +132,13 @@ def compute_gradient_finite_diff(param_name, params, target_data, current, time_
         'loss_change_minus': loss_change_minus
     }
     
-    # Print details
     if abs(gradient) < 1e-8:
-        print(f" ⚠️ WARNING: gradient ≈ 0.0000 (might be stuck or bad h={h:.4f})")
+        print(f" ⚠️ gradient ≈ 0.0000 (flat region)")
     else:
         direction = "↑" if gradient > 0 else "↓"
         print(f" ✓ gradient = {gradient:+.6f} {direction}")
     
     return result
-
 
 def compute_all_gradients_finite_diff(params, target_data, current, time_config, 
                                       h=None, params_to_optimize=None):
