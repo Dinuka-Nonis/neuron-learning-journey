@@ -499,9 +499,9 @@ def main():
     
     result = gradient_descent_with_momentum(
         initial_params, target_data, current, time_config,
-        learning_rate=0.00000001,  # INCREASED - let it learn faster
+        learning_rate=0.01,  # INCREASED - let it learn faster
         momentum=0.8,
-        max_iterations=100000,  # More iterations
+        max_iterations=10000,  # More iterations
         tolerance=0.1,
         params_to_optimize=['tau', 'v_rest', 'v_threshold'],  # Only these two
         verbose=True

@@ -9,6 +9,32 @@ from src.layer2_full_simulation import simulate_neuron_euler
 from src.layer3_target_data import generate_target_data
 from src.layer3_loss_functions import compute_combined_loss
 
+def get_optimal_step_size(param_name, param_value):
+    """
+    Get optimal step size for finite difference gradient computation.
+    
+    FIXED: Parameter-specific step sizes for better numerical stability.
+    
+    Args:
+        param_name (str): Parameter name
+        param_value (float): Current parameter value
+        
+    Returns:
+        float: Optimal step size for this parameter
+    """
+    # Empirically determined step sizes
+    step_sizes = {
+        'tau': 0.1,          # 0.1 ms - tau is ~20ms, so 0.5% step
+        'v_rest': 0.1,       # 0.1 mV - voltage parameters are ~-70mV
+        'v_threshold': 0.05, # 0.05 mV - threshold is sensitive!
+        'v_reset': 0.1       # 0.1 mV
+    }
+    
+    # Default: 1% of absolute value, with minimum
+    default_h = max(abs(param_value) * 0.01, 0.01)
+    
+    return step_sizes.get(param_name, default_h)
+
 def compute_gradient_finite_diff(param_name, params, target_data, current, time_config, h=None):
     """
     Compute gradient of loss w.r.t. ONE parameter using finite differences
