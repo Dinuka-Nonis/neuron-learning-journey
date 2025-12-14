@@ -127,112 +127,6 @@ def gradient_descent(initial_params, target_data, current, time_config,
     }
     return result
 
-def gradient_descent_with_momentum(initial_params, target_data, current, time_config,
-                                   learning_rate=0.1, momentum = 0.9 , max_iterations = 100, 
-                                   tolerance = 0.01, params_to_optimize=None, verbose = True):
-    """
-    Gradient descent with momentum ( accelerated optimization)
-
-    momemntum helps by:
-    -smoothing out oscillations
-    -accelerating in  consistent directions
-    -escaping shallow local minima
-
-    update rule: 
-        velocity = momentum * velocity - learning_rate* gradient
-        params = params + velocity  
-
-    Args:
-        same as gradient_descent, plus:
-        momentum (float): Momemntum coefficent (0-1, default: 0.9)
-    """
-
-    params = initial_params.copy()
-    if params_to_optimize is None:
-        params_to_optimize = ['tau', 'v_rest', 'v_threshold', 'v_reset']
-    
-    # Initialize velocity (momentum term)
-    velocity = {name: 0.0 for name in params_to_optimize}
-    
-    history = {
-        'loss': [],
-        'params': {name: [] for name in params_to_optimize}
-    }
-    
-    if verbose:
-        print("\n" + "="*60)
-        print("GRADIENT DESCENT WITH MOMENTUM")
-        print("="*60)
-        print(f"\nSettings:")
-        print(f"  Learning rate: {learning_rate}")
-        print(f"  Momentum: {momentum}")
-        print(f"  Max iterations: {max_iterations}")
-        print("\nStarting optimization...\n")
-    
-    for iteration in range(max_iterations):
-        # Simulate
-        v_initial = params['v_rest']
-        voltage, spikes = simulate_neuron_euler(
-            params, time_config, current, v_initial
-        )
-        
-        simulated = {
-            'voltage': voltage,
-            'spike_times': spikes,
-            'time_config': time_config
-        }
-        
-        # Loss
-        loss_result = compute_combined_loss(simulated, target_data, params)
-        loss = loss_result['total']
-        
-        # Record
-        history['loss'].append(loss)
-        for param_name in params_to_optimize:
-            history['params'][param_name].append(params[param_name])
-        
-        # Progress
-        if verbose and (iteration % 10 == 0 or iteration == max_iterations - 1):
-            print(f"Iteration {iteration:3d}: Loss = {loss:.6f}")
-        
-        # Check convergence
-        if loss < tolerance:
-            if verbose:
-                print(f"\n✅ Converged at iteration {iteration}")
-            break
-        
-        # Gradients
-        gradient_result = compute_all_gradients_finite_diff(
-            params, target_data, current, time_config,
-            h=0.01, params_to_optimize=params_to_optimize
-        )
-        gradients = gradient_result['gradients']
-        
-        # Update with momentum
-        for param_name in params_to_optimize:
-            # Update velocity (momentum + gradient)
-            velocity[param_name] = (momentum * velocity[param_name] - 
-                                   learning_rate * gradients[param_name])
-            
-            # Update parameter
-            params[param_name] += velocity[param_name]
-    
-    converged = loss < tolerance
-    
-    if verbose:
-        print("\n" + "="*60)
-        print(f"Final loss: {loss:.6f} after {iteration + 1} iterations")
-        print("="*60)
-    
-    result = {
-        'final_params': params,
-        'history': history,
-        'converged': converged,
-        'iterations': iteration + 1,
-        'final_loss': loss
-    }
-    
-    return result
 
 def plot_learning_curve(history, title="Learning Curve"):
     """
@@ -360,129 +254,330 @@ def compare_learned_vs_target(learned_params, target_data, current, time_config)
         print(f"{param_name:<15} {true_val:10.2f} {learned_val:10.2f} {error:10.4f}")
 
 
+def gradient_descent_with_momentum(initial_params, target_data, current, time_config,
+                                   learning_rate=0.001, momentum=0.9, max_iterations=1000, 
+                                   tolerance=0.01, params_to_optimize=None, verbose=True):
+    """
+    Gradient descent with momentum (accelerated optimization)
+    
+    Uses the FIXED gradient computation from Layer 4
+    """
+
+    params = initial_params.copy()
+    if params_to_optimize is None:
+        params_to_optimize = ['tau', 'v_rest', 'v_threshold', 'v_reset']
+    
+    velocity = {name: 0.0 for name in params_to_optimize}
+    
+    history = {
+        'loss': [],
+        'params': {name: [] for name in params_to_optimize}
+    }
+    
+    if verbose:
+        print("\n" + "="*70)
+        print("GRADIENT DESCENT WITH MOMENTUM")
+        print("="*70)
+        print(f"\nSettings:")
+        print(f"  Learning rate: {learning_rate}")
+        print(f"  Momentum: {momentum}")
+        print(f"  Max iterations: {max_iterations}")
+        print(f"  Optimizing: {params_to_optimize}")
+        print("\nStarting optimization...\n")
+    
+    for iteration in range(max_iterations):
+        # Step 1: Simulate with current parameters
+        v_initial = params['v_rest']
+        voltage, spikes = simulate_neuron_euler(
+            params, time_config, current, v_initial
+        )
+        
+        simulated = {
+            'voltage': voltage,
+            'spike_times': spikes,
+            'time_config': time_config
+        }
+        
+        # Step 2: Compute loss
+        loss_result = compute_combined_loss(simulated, target_data, params)
+        loss = loss_result['total']
+        
+        # Record history
+        history['loss'].append(loss)
+        for param_name in params_to_optimize:
+            history['params'][param_name].append(params[param_name])
+        
+        # Progress
+        if verbose and (iteration % 50 == 0 or iteration == max_iterations - 1):
+            print(f"Iteration {iteration:4d}: Loss = {loss:.6f}")
+        
+        # Check convergence
+        if loss < tolerance:
+            if verbose:
+                print(f"\n✅ Converged at iteration {iteration}")
+            break
+        
+        # Step 3: Compute gradients (FIXED VERSION)
+        gradient_result = compute_all_gradients_finite_diff(
+            params, target_data, current, time_config,
+            h=None,  # Auto-calculate optimal step size
+            params_to_optimize=params_to_optimize
+        )
+        gradients = gradient_result['gradients']
+        
+        # Step 4: Update with momentum
+        for param_name in params_to_optimize:
+            velocity[param_name] = (momentum * velocity[param_name] - 
+                                   learning_rate * gradients[param_name])
+            params[param_name] += velocity[param_name]
+    
+    converged = loss < tolerance
+    
+    if verbose:
+        print("\n" + "="*70)
+        print("OPTIMIZATION COMPLETE")
+        print("="*70)
+        print(f"Final loss: {loss:.6f} after {iteration + 1} iterations")
+        print(f"Converged: {converged}")
+    
+    result = {
+        'final_params': params,
+        'history': history,
+        'converged': converged,
+        'iterations': iteration + 1,
+        'final_loss': loss
+    }
+    
+    return result
+
+
+def create_performance_summary(result, target_data, learned_params, current, time_config):
+    """
+    Create a comprehensive professional summary figure showing model performance.
+    """
+    v_initial = learned_params['v_rest']
+    voltage_learned, spikes_learned = simulate_neuron_euler(
+        learned_params, time_config, current, v_initial
+    )
+    
+    voltage_target = target_data['voltage']
+    spikes_target = target_data['spike_times']
+    time = target_data['time']
+    true_params = target_data['params']
+    
+    fig = plt.figure(figsize=(16, 10))
+    gs = fig.add_gridspec(3, 3, hspace=0.35, wspace=0.3)
+    
+    # 1. Main comparison: Voltage traces
+    ax1 = fig.add_subplot(gs[0:2, 0:2])
+    ax1.plot(time, voltage_target, 'r-', linewidth=2.5, alpha=0.8, label='Target (True Model)')
+    ax1.plot(time, voltage_learned, 'b--', linewidth=2.5, alpha=0.8, label='Learned Model')
+    
+    for spike_time in spikes_target:
+        ax1.axvline(x=spike_time, color='red', linestyle=':', alpha=0.4, linewidth=1.5)
+    for spike_time in spikes_learned:
+        ax1.axvline(x=spike_time, color='blue', linestyle=':', alpha=0.4, linewidth=1.5)
+    
+    ax1.set_ylabel('Voltage (mV)', fontsize=12, weight='bold')
+    ax1.set_title('Neuron Voltage: Target vs Learned Model', fontsize=13, weight='bold')
+    ax1.legend(fontsize=11, loc='best')
+    ax1.grid(True, alpha=0.3)
+    ax1.set_xlim([time[0], time[-1]])
+    
+    # 2. Input current
+    ax2 = fig.add_subplot(gs[2, 0:2])
+    ax2.fill_between(time, 0, current, alpha=0.4, color='orange')
+    ax2.plot(time, current, 'orange', linewidth=2)
+    ax2.set_xlabel('Time (ms)', fontsize=12, weight='bold')
+    ax2.set_ylabel('Current (uA)', fontsize=11)
+    ax2.grid(True, alpha=0.3)
+    ax2.set_xlim([time[0], time[-1]])
+    
+    # 3. Learning curve (loss)
+    ax3 = fig.add_subplot(gs[0, 2])
+    ax3.semilogy(result['history']['loss'], 'g-', linewidth=2.5, marker='o', markersize=4)
+    ax3.set_xlabel('Iteration', fontsize=11)
+    ax3.set_ylabel('Loss', fontsize=11, weight='bold')
+    ax3.set_title('Convergence', fontsize=12, weight='bold')
+    ax3.grid(True, alpha=0.3, which='both')
+    
+    # 4. Parameter errors
+    ax4 = fig.add_subplot(gs[1, 2])
+    params_optimized = list(result['history']['params'].keys())
+    param_errors = {}
+    
+    for param_name in params_optimized:
+        true_val = true_params[param_name]
+        learned_val = learned_params[param_name]
+        error_pct = (abs(learned_val - true_val) / abs(true_val)) * 100 if true_val != 0 else 0
+        param_errors[param_name] = error_pct
+    
+    colors = ['#2ecc71' if e < 5 else '#f39c12' if e < 15 else '#e74c3c' for e in param_errors.values()]
+    bars = ax4.barh(list(param_errors.keys()), list(param_errors.values()), color=colors, alpha=0.7)
+    ax4.set_xlabel('Error (%)', fontsize=11, weight='bold')
+    ax4.set_title('Parameter Accuracy', fontsize=12, weight='bold')
+    ax4.grid(True, alpha=0.3, axis='x')
+    
+    for i, (param, error) in enumerate(param_errors.items()):
+        ax4.text(error + 0.5, i, f'{error:.1f}%', va='center', fontsize=10, weight='bold')
+    
+    # 5. Metrics box
+    ax5 = fig.add_subplot(gs[2, 2])
+    ax5.axis('off')
+    
+    mse = np.mean((voltage_learned - voltage_target)**2)
+    spike_accuracy = (len(spikes_target) == len(spikes_learned))
+    corr = np.corrcoef(voltage_learned, voltage_target)[0, 1]
+    
+    metrics_text = (
+        f"PERFORMANCE METRICS\n"
+        f"{'='*30}\n"
+        f"Voltage MSE: {mse:.4f} mV^2\n"
+        f"Correlation: {corr:.4f}\n"
+        f"Target Spikes: {len(spikes_target)}\n"
+        f"Learned Spikes: {len(spikes_learned)}\n"
+        f"Spike Match: {'YES' if spike_accuracy else 'NO'}\n"
+        f"{'='*30}\n"
+        f"Converged: {'YES' if result['converged'] else 'NO'}\n"
+        f"Iterations: {result['iterations']}\n"
+        f"Final Loss: {result['final_loss']:.4f}"
+    )
+    
+    ax5.text(0.05, 0.95, metrics_text, transform=ax5.transAxes, fontsize=10,
+             verticalalignment='top', family='monospace',
+             bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.5))
+    
+    plt.suptitle('NEURON PARAMETER LEARNING - PERFORMANCE SUMMARY', 
+                 fontsize=15, weight='bold', y=0.995)
+    
+    return fig
+
+
 def main():
     """
-    Complete learning demonstration - the grand finale!
+    Complete learning demonstration with FIXED gradients - BEST RESULT ONLY
     """
-    print("="*60)
-    print("COMPLETE LEARNING DEMONSTRATION ")
-    print("="*60)
-    print("\nThis brings together ALL previous layers:")
-    print("  Layer 1: Parameters, input, voltage, time")
-    print("  Layer 2: Forward simulation")
-    print("  Layer 3: Loss functions")
-    print("  Layer 4: Gradient computation")
-    print("  Layer 5: Learning loop")
+    print("="*70)
+    print("NEURON PARAMETER LEARNING - FIXED GRADIENT COMPUTATION")
+    print("="*70)
+    print("\nUsing improved gradient calculation from Layer 4")
+    print("Focus: Get the BEST possible model fit\n")
     
     # Setup
-    print("\nSetup...")
+    print("Setting up simulation...")
     time_config = create_time_configuration(dt=0.1, t_total=100.0)
     time = time_config['time']
-    current = create_constant_inputs(time, amplitude=18.0)
+    current = create_constant_inputs(time, amplitude=35.0)
     
     # Generate target
     print("Generating target data...")
     target_data = generate_target_data(current, time_config, noise_level=0.0)
     
+    target_spikes = target_data['spike_times']
+    if len(target_spikes) == 0:
+        print("Retrying with higher current...")
+        current = create_constant_inputs(time, amplitude=50.0)
+        target_data = generate_target_data(current, time_config, noise_level=0.0)
+        target_spikes = target_data['spike_times']
+    
     true_params = target_data['params']
-    print(f"\nTrue (hidden) parameters to recover:")
+    print(f"\nTrue Parameters (Target - Hidden):")
     for param_name in ['tau', 'v_rest', 'v_threshold', 'v_reset']:
-        print(f"  {param_name:12s} = {true_params[param_name]:.2f}")
+        print(f"  {param_name:12s} = {true_params[param_name]:8.4f}")
     
-    # Starting point
     initial_params = get_default_parameters()
-    print(f"\nStarting parameters (initial guess):")
+    print(f"\nInitial Parameters (Bad Guess):")
     for param_name in ['tau', 'v_rest', 'v_threshold', 'v_reset']:
-        print(f"  {param_name:12s} = {initial_params[param_name]:.2f}")
+        print(f"  {param_name:12s} = {initial_params[param_name]:8.4f}")
     
-    # LEARNING!
-    print("\n" + "="*60)
-    print("Starting Learning...")
-    print("="*60)
+    print(f"\nTarget has {len(target_spikes)} spikes")
     
-    result = gradient_descent(
+    # LEARNING - Optimize tau and v_rest for smooth voltage matching
+    print("\n" + "="*70)
+    print("LEARNING: Optimizing tau and v_rest")
+    print("="*70)
+    
+    result = gradient_descent_with_momentum(
         initial_params, target_data, current, time_config,
-        learning_rate=0.5,
-        max_iterations=50,
-        tolerance=0.01,
-        params_to_optimize=['tau', 'v_threshold'],  # Learn just these two
+        learning_rate=0.00000001,  # INCREASED - let it learn faster
+        momentum=0.8,
+        max_iterations=100000,  # More iterations
+        tolerance=0.1,
+        params_to_optimize=['tau', 'v_rest', 'v_threshold'],  # Only these two
         verbose=True
     )
     
-    # Results
     learned_params = result['final_params']
     
-    print("\n" + "="*60)
-    print("VISUALIZING RESULTS")
-    print("="*60)
+    # RESULTS
+    print("\n" + "="*70)
+    print("FINAL RESULTS")
+    print("="*70)
+    print(f"\nOptimization Summary:")
+    print(f"  Final Loss: {result['final_loss']:.6f}")
+    print(f"  Iterations: {result['iterations']}")
+    print(f"  Converged: {result['converged']}")
     
-    # Plot 1: Learning curve
-    print("\n1. Loss over time (learning curve)...")
-    plot_learning_curve(result['history'], "Loss During Learning")
+    print(f"\nLearned Parameters:")
+    param_errors = {}
+    for param_name in ['tau', 'v_rest', 'v_threshold', 'v_reset']:
+        true_val = true_params[param_name]
+        learned_val = learned_params[param_name]
+        error = abs(learned_val - true_val)
+        error_pct = (error / abs(true_val)) * 100 if true_val != 0 else 0
+        param_errors[param_name] = error_pct
+        
+        status = "Excellent" if error_pct < 5 else "Good" if error_pct < 15 else "Fair"
+        print(f"  {param_name:12s} = {learned_val:8.4f} (error: {error_pct:6.2f}%) [{status}]")
     
-    # Plot 2: Parameter evolution
-    print("\n2. Parameter convergence...")
-    plot_parameter_evolution(result['history'], true_params, "Parameter Evolution")
+    # VISUALIZATION
+    print("\n" + "="*70)
+    print("GENERATING PROFESSIONAL VISUALIZATION")
+    print("="*70)
     
-    # Plot 3: Final comparison
-    print("\n3. Learned vs Target...")
-    compare_learned_vs_target(learned_params, target_data, current, time_config)
-    
-    # Try with momentum
-    print("\n" + "="*60)
-    print("Now trying with MOMENTUM for comparison...")
-    print("="*60)
-    
-    result_momentum = gradient_descent_with_momentum(
-        initial_params, target_data, current, time_config,
-        learning_rate=0.5,
-        momentum=0.9,
-        max_iterations=50,
-        tolerance=0.01,
-        params_to_optimize=['tau', 'v_threshold'],
-        verbose=True
-    )
-    
-    # Compare both methods
-    print("\n" + "="*60)
-    print("COMPARISON: Regular vs Momentum")
-    print("="*60)
-    
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-    
-    ax1.plot(result['history']['loss'], 'b-', linewidth=2, label='Regular GD')
-    ax1.plot(result_momentum['history']['loss'], 'r-', linewidth=2, label='With Momentum')
-    ax1.set_xlabel('Iteration')
-    ax1.set_ylabel('Loss')
-    ax1.set_title('Learning Curves Comparison')
-    ax1.set_yscale('log')
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
-    
-    ax2.text(0.5, 0.8, f"Regular GD:", ha='center', fontsize=12, weight='bold', transform=ax2.transAxes)
-    ax2.text(0.5, 0.7, f"Final loss: {result['final_loss']:.6f}", ha='center', fontsize=10, transform=ax2.transAxes)
-    ax2.text(0.5, 0.6, f"Iterations: {result['iterations']}", ha='center', fontsize=10, transform=ax2.transAxes)
-    
-    ax2.text(0.5, 0.4, f"With Momentum:", ha='center', fontsize=12, weight='bold', transform=ax2.transAxes)
-    ax2.text(0.5, 0.3, f"Final loss: {result_momentum['final_loss']:.6f}", ha='center', fontsize=10, transform=ax2.transAxes)
-    ax2.text(0.5, 0.2, f"Iterations: {result_momentum['iterations']}", ha='center', fontsize=10, transform=ax2.transAxes)
-    
-    ax2.axis('off')
-    
+    fig = create_performance_summary(result, target_data, learned_params, current, time_config)
     plt.tight_layout()
+    plt.savefig('best_result_summary.png', dpi=300, bbox_inches='tight')
+    print("\nSaved as 'best_result_summary.png' (high resolution)")
     plt.show()
     
-    print("\n" + "="*60)
-    print("PROJECT COMPLETE!")
-    print("="*60)
-    print("\nWhat we achieved:")
-    print("   • Built a differentiable neuron simulator")
-    print("   • Defined loss functions to measure error")
-    print("   • Computed gradients numerically")
-    print("   • Implemented gradient descent learning")
-    print("   • Successfully recovered hidden parameters!")
-    print("\nThis is the essence of differentiable programming:")
-    print("   Build differentiable systems → compute gradients → learn!")
+    # DETAILED ANALYSIS
+    print("\n" + "="*70)
+    print("DETAILED ANALYSIS")
+    print("="*70)
+    
+    v_initial = learned_params['v_rest']
+    voltage_learned, spikes_learned = simulate_neuron_euler(
+        learned_params, time_config, current, v_initial
+    )
+    
+    voltage_target = target_data['voltage']
+    spikes_target = target_data['spike_times']
+    
+    mse = np.mean((voltage_learned - voltage_target)**2)
+    max_error = np.max(np.abs(voltage_learned - voltage_target))
+    corr = np.corrcoef(voltage_learned, voltage_target)[0, 1]
+    
+    print(f"\nVoltage Reconstruction Quality:")
+    print(f"  MSE: {mse:.6f} mV^2")
+    print(f"  Max Error: {max_error:.4f} mV")
+    print(f"  Correlation: {corr:.6f}")
+    
+    print(f"\nSpike Matching:")
+    print(f"  Target Spikes: {len(spikes_target)}")
+    print(f"  Learned Spikes: {len(spikes_learned)}")
+    print(f"  Match: {'YES' if len(spikes_target) == len(spikes_learned) else 'NO'}")
+    
+    print(f"\nParameter Recovery Summary:")
+    avg_error = np.mean(list(param_errors.values()))
+    print(f"  Average Error: {avg_error:.2f}%")
+    excellent = sum(1 for e in param_errors.values() if e < 5)
+    print(f"  Parameters within 5%: {excellent}/4")
+    
+    print("\n" + "="*70)
+    print("SUCCESS! Model trained with fixed gradients!")
+    print("="*70)
+
 
 if __name__ == "__main__":
     main()

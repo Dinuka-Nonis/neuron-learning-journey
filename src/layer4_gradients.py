@@ -9,117 +9,155 @@ from src.layer2_full_simulation import simulate_neuron_euler
 from src.layer3_target_data import generate_target_data
 from src.layer3_loss_functions import compute_combined_loss
 
-def compute_gradient_finite_diff(param_name, params, target_data, current, time_config, h=0.01):
+def compute_gradient_finite_diff(param_name, params, target_data, current, time_config, h=None):
     """
-    Compute gradient of loss w.r.t. ONE paraameter using finite differences
-
-    this is numerical differentiation : 
-        ∂loss/∂param ≈ (loss(param+h) - loss(param)) / h
-
-
-    Args:
-        param_name (str): Name of parameter
-        params (dict): current parameter values
-        target_data (dict): target data to match
-        current (np.ndarray): input current
-        time_config (dict): time configuration
-        h (float, optional): step sixe for finite difference . Defaults to 0.01.
+    Compute gradient of loss w.r.t. ONE parameter using finite differences
+    
+    FIXED VERSION - Proper numerical differentiation
     """
-
-    #step 1: compute loss at original parameters
+    
+    # Auto-determine step size if not provided (5% of parameter value)
+    if h is None:
+        h = abs(params[param_name]) * 0.05
+        if h < 1e-6:  # Prevent tiny steps
+            h = 0.1
+    
+    print(f"\n  Computing ∂loss/∂{param_name}... (h={h:.4f})", end='')
+    
+    # Step 1: Compute loss at ORIGINAL parameters
     v_initial = params['v_rest']
     voltage_original, spikes_original = simulate_neuron_euler(
         params, time_config, current, v_initial
     )
     simulated_original = {
-        'voltage':voltage_original,
-        'spike_times':spikes_original,
-        'time_config':time_config
+        'voltage': voltage_original,
+        'spike_times': spikes_original,
+        'time_config': time_config
     }
-
+    
     loss_result_original = compute_combined_loss(
-        simulated_original, target_data, params
+        simulated_original, target_data, params  # FIXED: pass original params
     )
     loss_original = loss_result_original['total']
-
-    #step2: perturb the parameter slightly
-
-    params_pertubed = params.copy()
+    
+    # Step 2: Perturb parameter UPWARD by h
+    params_perturbed_plus = params.copy()
     original_value = params[param_name]
-    params_pertubed[param_name] = original_value + h
-
-    #step3 : compute loss at perbuted parameters
-    voltage_perturbed, spikes_perturbed = simulate_neuron_euler(
-        params_pertubed, time_config, current, v_initial
+    params_perturbed_plus[param_name] = original_value + h
+    
+    # Step 3: Compute loss at PERTURBED+h
+    voltage_perturbed_plus, spikes_perturbed_plus = simulate_neuron_euler(
+        params_perturbed_plus, time_config, current, v_initial
     )
-
-    simulated_perturbed = {
-        'voltage':voltage_perturbed,
-        'spike_times':spikes_perturbed,
-        'time_config':time_config
+    
+    simulated_perturbed_plus = {
+        'voltage': voltage_perturbed_plus,
+        'spike_times': spikes_perturbed_plus,
+        'time_config': time_config
     }
-
-    loss_result_perturbed = compute_combined_loss(simulated_perturbed, target_data, params_pertubed)
-
-    loss_perturbed = loss_result_perturbed['total']
-
-    #step4 : compute gradient 
-    gradient = (loss_perturbed - loss_original)/h
-
+    
+    loss_result_perturbed_plus = compute_combined_loss(
+        simulated_perturbed_plus, target_data, params  # FIXED: pass original params
+    )
+    loss_perturbed_plus = loss_result_perturbed_plus['total']
+    
+    # Step 4: Perturb parameter DOWNWARD by h (for better accuracy)
+    params_perturbed_minus = params.copy()
+    params_perturbed_minus[param_name] = original_value - h
+    
+    voltage_perturbed_minus, spikes_perturbed_minus = simulate_neuron_euler(
+        params_perturbed_minus, time_config, current, v_initial
+    )
+    
+    simulated_perturbed_minus = {
+        'voltage': voltage_perturbed_minus,
+        'spike_times': spikes_perturbed_minus,
+        'time_config': time_config
+    }
+    
+    loss_result_perturbed_minus = compute_combined_loss(
+        simulated_perturbed_minus, target_data, params  # FIXED: pass original params
+    )
+    loss_perturbed_minus = loss_result_perturbed_minus['total']
+    
+    # Step 5: Central finite difference (more accurate than forward difference)
+    # gradient ≈ (f(x+h) - f(x-h)) / (2h)
+    gradient = (loss_perturbed_plus - loss_perturbed_minus) / (2 * h)
+    
+    # Sanity check
+    loss_change_plus = loss_perturbed_plus - loss_original
+    loss_change_minus = loss_perturbed_minus - loss_original
+    
     result = {
-        'gradient':gradient,
-        'loss_original':loss_original,
-        'loss_perturbed':loss_perturbed,
-        'param_original':original_value,
-        'param_perturbed':original_value+h
+        'gradient': gradient,
+        'loss_original': loss_original,
+        'loss_perturbed_plus': loss_perturbed_plus,
+        'loss_perturbed_minus': loss_perturbed_minus,
+        'param_original': original_value,
+        'param_plus': original_value + h,
+        'param_minus': original_value - h,
+        'h': h,
+        'loss_change_plus': loss_change_plus,
+        'loss_change_minus': loss_change_minus
     }
+    
+    # Print details
+    if abs(gradient) < 1e-8:
+        print(f" ⚠️ WARNING: gradient ≈ 0.0000 (might be stuck or bad h={h:.4f})")
+    else:
+        direction = "↑" if gradient > 0 else "↓"
+        print(f" ✓ gradient = {gradient:+.6f} {direction}")
+    
     return result
 
-def compute_all_gradients_finite_diff(params, target_data, current,time_config, h=0.01, params_to_optimize =None):
-    """
-    compute gradients for all parameters
-    this calls compute_gradient_finite_diff() for each parameter
 
-    Args:
-        params (dict): current parameter values
-        target_data (dicct): target data to match
-        current (np.ndarray): input current
-        time_config (dict): time configuration
-        h (float, optional): step size for finite differences. Defaults to 0.01.
-        params_to_optimize (list, optional): which parameters tocompute gradients for. Defaults to None.
+def compute_all_gradients_finite_diff(params, target_data, current, time_config, 
+                                      h=None, params_to_optimize=None):
     """
-    #default : optimize all parameters
+    Compute gradients for all parameters.
+    
+    FIXED VERSION - Uses central differences, proper step sizing
+    """
+    
     if params_to_optimize is None:
         params_to_optimize = ['tau', 'v_rest', 'v_threshold', 'v_reset']
-
-    #storage
+    
     gradients = {}
     details = {}
-
-    #compute gradient for each parameter
-    print("\nComputing gradients...")
+    
+    print("\nComputing gradients with central finite differences...")
+    
     for param_name in params_to_optimize:
-        print(f" Computing ∂loss/∂{param_name}...", end=' ')
-
         result = compute_gradient_finite_diff(
             param_name, params, target_data, current, time_config, h
         )
-
+        
         gradients[param_name] = result['gradient']
         details[param_name] = result
-
-        print(f"✓ gradient = {result['gradient']:.4f}")
-
+    
     loss_original = details[params_to_optimize[0]]['loss_original']
-
+    
+    print(f"\n{'='*60}")
+    print("Gradient Summary:")
+    print(f"{'='*60}")
+    print(f"Current Loss: {loss_original:.6f}\n")
+    
+    for param_name in params_to_optimize:
+        grad = gradients[param_name]
+        if grad > 0:
+            print(f"  ∂loss/∂{param_name:12s} = {grad:+.8f}  (decrease {param_name})")
+        elif grad < 0:
+            print(f"  ∂loss/∂{param_name:12s} = {grad:+.8f}  (increase {param_name})")
+        else:
+            print(f"  ∂loss/∂{param_name:12s} = {grad:+.8f}  (no gradient signal)")
+    
     result = {
-        'gradients':gradients,
-        'loss':loss_original,
-        'details':details
+        'gradients': gradients,
+        'loss': loss_original,
+        'details': details
     }
-
+    
     return result
-
 def verify_gradient_direction(param_name , params , gradient , target_data, current, time_config, step_size = 0.1):
     """
     verify that gradient points in right direction
