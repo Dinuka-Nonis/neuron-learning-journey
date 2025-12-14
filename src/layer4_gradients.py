@@ -57,7 +57,7 @@ def compute_gradient_finite_diff(param_name, params, target_data, current, time_
     }
     
     loss_result_perturbed_plus = compute_combined_loss(
-        simulated_perturbed_plus, target_data, params  # FIXED: pass original params
+    simulated_perturbed_plus, target_data, params_perturbed_plus  # ← Use perturbed!
     )
     loss_perturbed_plus = loss_result_perturbed_plus['total']
     
@@ -76,7 +76,7 @@ def compute_gradient_finite_diff(param_name, params, target_data, current, time_
     }
     
     loss_result_perturbed_minus = compute_combined_loss(
-        simulated_perturbed_minus, target_data, params  # FIXED: pass original params
+    simulated_perturbed_minus, target_data, params_perturbed_minus  # ← Use perturbed!
     )
     loss_perturbed_minus = loss_result_perturbed_minus['total']
     
