@@ -143,6 +143,18 @@ def plot_multiple_simulations(simulations, params, title="Comparison of Simulati
     fig.suptitle(title, fontsize=14, y=0.995)
     plt.tight_layout()
     plt.show()
+
+def add_spike_peaks_for_display(time, voltage, spike_times, spike_height=40.0):
+    """Make spikes visible by adding upstroke peaks."""
+    voltage_visual = voltage.copy()
+    
+    for spike_time in spike_times:
+        spike_idx = np.argmin(np.abs(time - spike_time))
+        if spike_idx >= 2:
+            voltage_visual[spike_idx - 2] = -55.0  # At threshold
+            voltage_visual[spike_idx - 1] = spike_height  # Peak!
+    
+    return voltage_visual
 def main():
     """
     Demonstrate all visualization functions.
@@ -198,6 +210,8 @@ def main():
                              "Comparison: Effect of Input Strength")
     
     print("\n✅ All visualizations complete!")
+    voltage_visual = add_spike_peaks_for_display(time, voltage, spike_times)
+    plt.plot(time, voltage_visual, 'darkorange', linewidth=3)
 
 
 if __name__ == "__main__":

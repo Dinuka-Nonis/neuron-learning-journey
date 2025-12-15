@@ -1,5 +1,7 @@
 # Neuron Learning Journey
 
+![alt text](hh_parameter_learning.png)
+
 A step-by-step implementation of differentiable programming for computational neuroscience, built from first principles.
 
 ## Project Overview
